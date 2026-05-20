@@ -246,6 +246,7 @@ if($ENV{ROS_VERSION} MATCHES "1")
           launch
           rviz
           config
+          scripts
           DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION})
 endif($ENV{ROS_VERSION} MATCHES "1")
 
@@ -308,6 +309,7 @@ if($ENV{ROS_VERSION} MATCHES "2")
           launch
           rviz
           config
+          scripts
           DESTINATION share/${PROJECT_NAME})
 
   ament_package()

@@ -38,7 +38,13 @@ def _require_existing_file(path, label):
     return expanded_path
 
 
-def _update_lidar_config(config, pcap_path, correction_file_path, firetimes_path):
+def _update_lidar_config(
+    config,
+    pcap_path,
+    correction_file_path,
+    firetimes_path,
+    default_frame_frequency,
+):
     lidars = config.get("lidar")
     if not isinstance(lidars, list):
         raise RuntimeError("Expected 'lidar' to be a list in the Hesai config")
@@ -52,6 +58,8 @@ def _update_lidar_config(config, pcap_path, correction_file_path, firetimes_path
         pcap_type["correction_file_path"] = correction_file_path
         pcap_type["firetimes_path"] = firetimes_path
         pcap_type["pcap_play_in_loop"] = False
+        if default_frame_frequency is not None:
+            driver["default_frame_frequency"] = default_frame_frequency
 
 
 def _effective_config_value(config, key):
@@ -134,6 +142,9 @@ def _make_runtime_actions(context):
     output_bag_path_arg = LaunchConfiguration("output_bag_path").perform(context).strip()
     record_topics_arg = LaunchConfiguration("record_topics").perform(context).strip()
     record_delay_arg = LaunchConfiguration("record_delay").perform(context).strip()
+    default_frame_frequency_arg = (
+        LaunchConfiguration("default_frame_frequency").perform(context).strip()
+    )
 
     if not os.path.isfile(base_config_path):
         raise RuntimeError(f"base_config_path does not exist: {base_config_path}")
@@ -157,7 +168,23 @@ def _make_runtime_actions(context):
     if firetimes_path:
         firetimes_path = _require_existing_file(firetimes_path, "firetimes_path")
 
-    _update_lidar_config(config, pcap_path, correction_file_path, firetimes_path)
+    if default_frame_frequency_arg:
+        try:
+            default_frame_frequency = float(default_frame_frequency_arg)
+        except ValueError as exc:
+            raise RuntimeError(
+                f"default_frame_frequency must be a number: {default_frame_frequency_arg}"
+            ) from exc
+    else:
+        default_frame_frequency = None
+
+    _update_lidar_config(
+        config,
+        pcap_path,
+        correction_file_path,
+        firetimes_path,
+        default_frame_frequency,
+    )
 
     with tempfile.NamedTemporaryFile(
         mode="w",
@@ -279,6 +306,11 @@ def generate_launch_description():
                 "record_delay",
                 default_value="2.0",
                 description="Seconds to wait after starting ros2 bag record before launching the driver.",
+            ),
+            DeclareLaunchArgument(
+                "default_frame_frequency",
+                default_value="",
+                description="Override driver.default_frame_frequency in the runtime config. Empty means use base_config_path.",
             ),
             DeclareLaunchArgument(
                 "base_config_path",
